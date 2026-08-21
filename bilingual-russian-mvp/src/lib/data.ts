@@ -3,8 +3,11 @@ import type {
   Child,
   CompletedLesson,
   LanguageSkill,
+  LessonPackage,
   LessonTemplate,
   ProgressSnapshot,
+  ScheduledLesson,
+  Teacher,
 } from "./types";
 
 export const SKILL_ORDER = [
@@ -17,6 +20,20 @@ export const SKILL_ORDER = [
   "engagement",
 ] as const;
 
+export const DEMO_TEACHER_ID = "teacher-anna";
+export const LEARNER_TZ = "America/New_York";
+export const TEACHER_TZ = "Europe/Moscow";
+
+export const teachers: Teacher[] = [
+  {
+    id: DEMO_TEACHER_ID,
+    name: "Anna",
+    timezone: TEACHER_TZ,
+    ratePerLesson: 15,
+    earningsStatus: "pending",
+  },
+];
+
 export const children: Child[] = [
   {
     id: "lana",
@@ -25,7 +42,7 @@ export const children: Child[] = [
     dominantLanguage: "English",
     bilingualEnvironment: "Russian at home / English-dominant daycare & community",
     russianLevel: "Emerging speaker",
-    lessonFrequency: "2 × 20 min / week",
+    lessonFrequency: "Tue & Thu · 4:00 PM ET · 20 min",
     currentGoal: "Name clothes + colors and use “Я надеваю…”",
     avatarColor: "#3D8B7A",
     strengths: [
@@ -43,6 +60,8 @@ export const children: Child[] = [
       "Uses “Где…?” with support in play",
       "Stays focused for full 20-minute lesson",
     ],
+    teacherId: DEMO_TEACHER_ID,
+    timezone: LEARNER_TZ,
     isDemoFocus: true,
   },
   {
@@ -52,7 +71,7 @@ export const children: Child[] = [
     dominantLanguage: "Russian–English balanced",
     bilingualEnvironment: "Russian with grandparents / English school",
     russianLevel: "Developing conversational",
-    lessonFrequency: "1 × 20 min / week",
+    lessonFrequency: "Wed · 5:00 PM ET · 20 min",
     currentGoal: "Tell a short 3-sentence story about a past event",
     avatarColor: "#4A6FA5",
     strengths: [
@@ -68,6 +87,8 @@ export const children: Child[] = [
       "Retells familiar stories with 2 connected sentences",
       "Self-corrects gender on common adjectives",
     ],
+    teacherId: DEMO_TEACHER_ID,
+    timezone: LEARNER_TZ,
   },
   {
     id: "sofia",
@@ -76,7 +97,7 @@ export const children: Child[] = [
     dominantLanguage: "English",
     bilingualEnvironment: "One Russian-speaking parent / English at preschool",
     russianLevel: "Early producing",
-    lessonFrequency: "2 × 20 min / week",
+    lessonFrequency: "Tue & Thu · 6:30 PM ET · 20 min",
     currentGoal: "Ask and answer “Что это?” with full noun phrases",
     avatarColor: "#C47A5A",
     strengths: [
@@ -91,8 +112,176 @@ export const children: Child[] = [
       "Produces animal names independently",
       "Joins choral responses without prompting",
     ],
+    teacherId: DEMO_TEACHER_ID,
+    timezone: LEARNER_TZ,
   },
 ];
+
+const ZOOM_LANA = {
+  url: "https://zoom.us/j/81234567890",
+  meetingId: "812 3456 7890",
+  passcode: "lado",
+};
+
+const ZOOM_MISHA = {
+  url: "https://zoom.us/j/81234567891",
+  meetingId: "812 3456 7891",
+};
+
+const ZOOM_SOFIA = {
+  url: "https://zoom.us/j/81234567892",
+  meetingId: "812 3456 7892",
+};
+
+/** Build UTC ISO from ET wall-clock (demo seed; EDT = UTC-4 in August). */
+function et(date: string, hour: number, minute = 0) {
+  const h = String(hour + 4).padStart(2, "0");
+  const m = String(minute).padStart(2, "0");
+  return `${date}T${h}:${m}:00.000Z`;
+}
+
+export const packages: LessonPackage[] = [
+  {
+    id: "pkg-lana",
+    childId: "lana",
+    purchasedAt: "2026-07-01",
+    priceUsd: 160,
+    lessonsPurchased: 8,
+    lessonsCompleted: 3,
+    lessonsCancelled: 0,
+    lessonsNoShow: 0,
+    lessonsRescheduled: 1,
+    paymentStatus: "paid",
+    nextPaymentDue: "2026-09-01",
+  },
+  {
+    id: "pkg-misha",
+    childId: "misha",
+    purchasedAt: "2026-07-15",
+    priceUsd: 160,
+    lessonsPurchased: 8,
+    lessonsCompleted: 1,
+    lessonsCancelled: 0,
+    lessonsNoShow: 0,
+    lessonsRescheduled: 0,
+    paymentStatus: "paid",
+  },
+  {
+    id: "pkg-sofia",
+    childId: "sofia",
+    purchasedAt: "2026-08-01",
+    priceUsd: 160,
+    lessonsPurchased: 8,
+    lessonsCompleted: 1,
+    lessonsCancelled: 0,
+    lessonsNoShow: 0,
+    lessonsRescheduled: 0,
+    paymentStatus: "due",
+    nextPaymentDue: "2026-08-25",
+  },
+];
+
+export function buildSchedule(): ScheduledLesson[] {
+  return [
+    // Today Fri Aug 21, 2026 — teacher Today view
+    {
+      id: "sch-lana-0821",
+      childId: "lana",
+      teacherId: DEMO_TEACHER_ID,
+      startsAt: et("2026-08-21", 16, 0),
+      durationMin: 20,
+      status: "upcoming",
+      topic: "Clothes and colors",
+      zoom: ZOOM_LANA,
+      seriesId: "series-lana-tt",
+      eligible: true,
+    },
+    {
+      id: "sch-misha-0821",
+      childId: "misha",
+      teacherId: DEMO_TEACHER_ID,
+      startsAt: et("2026-08-21", 17, 0),
+      durationMin: 20,
+      status: "upcoming",
+      topic: "Weekend story",
+      zoom: ZOOM_MISHA,
+      eligible: true,
+    },
+    {
+      id: "sch-sofia-0821",
+      childId: "sofia",
+      teacherId: DEMO_TEACHER_ID,
+      startsAt: et("2026-08-21", 18, 30),
+      durationMin: 20,
+      status: "upcoming",
+      topic: "Что это?",
+      zoom: ZOOM_SOFIA,
+      seriesId: "series-sofia-tt",
+      eligible: true,
+    },
+    // Rest of week
+    {
+      id: "sch-lana-0825",
+      childId: "lana",
+      teacherId: DEMO_TEACHER_ID,
+      startsAt: et("2026-08-25", 16, 0),
+      durationMin: 20,
+      status: "upcoming",
+      topic: "Clothes and colors",
+      zoom: ZOOM_LANA,
+      seriesId: "series-lana-tt",
+      eligible: true,
+    },
+    {
+      id: "sch-sofia-0825",
+      childId: "sofia",
+      teacherId: DEMO_TEACHER_ID,
+      startsAt: et("2026-08-25", 18, 30),
+      durationMin: 20,
+      status: "upcoming",
+      topic: "Animals",
+      zoom: ZOOM_SOFIA,
+      seriesId: "series-sofia-tt",
+      eligible: true,
+    },
+    {
+      id: "sch-misha-0826",
+      childId: "misha",
+      teacherId: DEMO_TEACHER_ID,
+      startsAt: et("2026-08-26", 17, 0),
+      durationMin: 20,
+      status: "upcoming",
+      topic: "Past tense play",
+      zoom: ZOOM_MISHA,
+      eligible: true,
+    },
+    {
+      id: "sch-lana-0827",
+      childId: "lana",
+      teacherId: DEMO_TEACHER_ID,
+      startsAt: et("2026-08-27", 16, 0),
+      durationMin: 20,
+      status: "upcoming",
+      topic: "Clothes review",
+      zoom: ZOOM_LANA,
+      seriesId: "series-lana-tt",
+      eligible: true,
+    },
+    // Past completed sample
+    {
+      id: "sch-lana-0819",
+      childId: "lana",
+      teacherId: DEMO_TEACHER_ID,
+      startsAt: et("2026-08-19", 16, 0),
+      durationMin: 20,
+      status: "completed",
+      topic: "Animals at home",
+      zoom: ZOOM_LANA,
+      seriesId: "series-lana-tt",
+      eligible: true,
+    },
+  ];
+}
 
 export const clothesLesson: LessonTemplate = {
   id: "lesson-clothes-colors",
@@ -149,6 +338,7 @@ export const clothesLesson: LessonTemplate = {
       id: "a-warmup",
       name: "Warm-up",
       durationMin: 3,
+      kind: "warmup",
       instructions:
         "Greet in Russian. Point to your own clothes and model: “У меня синяя кофта.” Invite Lana to point and echo colors she knows.",
       observe: "Does she respond to Russian greetings and color words receptively?",
@@ -159,6 +349,7 @@ export const clothesLesson: LessonTemplate = {
       id: "a-vocab",
       name: "Vocabulary",
       durationMin: 4,
+      kind: "vocab",
       instructions:
         "Present flashcards or real clothes: футболка, носки, шапка. Pair each with a color. Model full phrases slowly.",
       observe: "Independent naming vs. imitation; gender agreement on adjectives.",
@@ -173,6 +364,7 @@ export const clothesLesson: LessonTemplate = {
       id: "a-movement",
       name: "Movement activity",
       durationMin: 3,
+      kind: "movement",
       instructions:
         "“Одевайся!” game: place clothes around the room. Call out an item+color; Lana runs, finds it, and brings it back.",
       observe: "Receptive speed and whether she labels the item when returning.",
@@ -183,6 +375,7 @@ export const clothesLesson: LessonTemplate = {
       id: "a-speaking",
       name: "Speaking task",
       durationMin: 4,
+      kind: "speaking",
       instructions:
         "Dress a soft toy together. Teacher models “Я надеваю…” then fades support so Lana tries the frame with each item.",
       observe: "Can she keep the frame “Я надеваю…” or only name the noun?",
@@ -193,6 +386,7 @@ export const clothesLesson: LessonTemplate = {
       id: "a-game",
       name: "Interactive game",
       durationMin: 3,
+      kind: "game",
       instructions:
         "Hide-and-seek with socks. Lana asks “Где мои носки?” to get a clue. Swap roles once.",
       observe: "Initiation of the question without English; clarity of pronunciation.",
@@ -203,6 +397,7 @@ export const clothesLesson: LessonTemplate = {
       id: "a-story",
       name: "Story / review",
       durationMin: 3,
+      kind: "review",
       instructions:
         "Quick picture walk: morning routine. Review all targets; celebrate 1–2 independent wins; preview home practice.",
       observe: "Which phrases stick without prompt at the end of the lesson?",
@@ -805,6 +1000,8 @@ export function buildInitialProgress(): Record<string, ProgressSnapshot> {
 
 export function createInitialState(): AppState {
   return {
+    role: "teacher",
+    teachers,
     children,
     lessonsByChild: {
       lana: lanaHistory,
@@ -812,6 +1009,8 @@ export function createInitialState(): AppState {
       sofia: sofiaHistory,
     },
     progressByChild: buildInitialProgress(),
+    schedule: buildSchedule(),
+    packages,
   };
 }
 
