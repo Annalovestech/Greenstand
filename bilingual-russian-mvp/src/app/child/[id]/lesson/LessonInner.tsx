@@ -63,20 +63,14 @@ export default function LessonPageInner({
   const [usedPrompts, setUsedPrompts] = useState<Record<string, boolean>>({});
   const [showAllTargets, setShowAllTargets] = useState(false);
   const [editZoom, setEditZoom] = useState(false);
-  const [zoomUrl, setZoomUrl] = useState("");
-  const [meetingId, setMeetingId] = useState("");
+  const [zoomDraft, setZoomDraft] = useState<{ url: string; meetingId: string } | null>(
+    null
+  );
 
   useEffect(() => {
     if (!ready) return;
     if (!active) startLesson(id, scheduleId ?? scheduled?.id);
   }, [ready, active, id, startLesson, scheduleId, scheduled?.id]);
-
-  useEffect(() => {
-    if (scheduled) {
-      setZoomUrl(scheduled.zoom.url);
-      setMeetingId(scheduled.zoom.meetingId ?? "");
-    }
-  }, [scheduled]);
 
   useEffect(() => {
     if (!zoomLive) return;
@@ -154,23 +148,41 @@ export default function LessonPageInner({
               Join Zoom
             </SecondaryButton>
           )}
-          <QuietButton onClick={() => setEditZoom((v) => !v)}>
+          <QuietButton
+            onClick={() => {
+              if (!editZoom && scheduled) {
+                setZoomDraft({
+                  url: scheduled.zoom.url,
+                  meetingId: scheduled.zoom.meetingId ?? "",
+                });
+              }
+              setEditZoom((v) => !v);
+            }}
+          >
             {editZoom ? "Close" : "Edit link"}
           </QuietButton>
         </div>
 
-        {editZoom ? (
+        {editZoom && zoomDraft ? (
           <div className="mt-3 space-y-2">
             <input
               className="field"
-              value={zoomUrl}
-              onChange={(e) => setZoomUrl(e.target.value)}
+              value={zoomDraft.url}
+              onChange={(e) =>
+                setZoomDraft((d) =>
+                  d ? { ...d, url: e.target.value } : d
+                )
+              }
               placeholder="Zoom URL"
             />
             <input
               className="field"
-              value={meetingId}
-              onChange={(e) => setMeetingId(e.target.value)}
+              value={zoomDraft.meetingId}
+              onChange={(e) =>
+                setZoomDraft((d) =>
+                  d ? { ...d, meetingId: e.target.value } : d
+                )
+              }
               placeholder="Meeting ID"
             />
             <QuietButton onClick={saveZoom}>Save Zoom</QuietButton>
