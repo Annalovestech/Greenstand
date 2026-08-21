@@ -97,10 +97,13 @@ export function CalendarAgenda({
                     </p>
                     <p className="mt-0.5 text-[12px] text-[var(--muted)]">
                       {viewerAbbrev}
-                      {teacherTime && teacherAbbrev
+                      {teacherTime && teacherAbbrev && role !== "teacher"
                         ? ` · Teacher ${teacherTime} ${teacherAbbrev}`
                         : null}
-                      {lesson.eligible && role !== "parent"
+                      {role === "teacher" && teacherTime && teacherAbbrev
+                        ? ` · ${teacherTime} ${teacherAbbrev}`
+                        : null}
+                      {lesson.eligible && role === "admin"
                         ? " · Eligible"
                         : null}
                       {role === "parent" && lesson.zoom.url
@@ -141,19 +144,20 @@ export function CalendarAgenda({
                         Open
                       </Link>
                     ) : null}
-                    {(role === "teacher" || role === "admin") &&
-                    lesson.status === "upcoming" ? (
+                    {role === "admin" && lesson.status === "upcoming" ? (
                       <QuietButton
                         onClick={() => onStatus?.(lesson.id, "cancelled")}
                       >
                         Cancel
                       </QuietButton>
                     ) : null}
-                    <span
-                      className={`text-[11px] font-medium capitalize status-${lesson.status}`}
-                    >
-                      {lesson.status.replace("_", " ")}
-                    </span>
+                    {role !== "teacher" || lesson.status !== "upcoming" ? (
+                      <span
+                        className={`text-[11px] font-medium capitalize status-${lesson.status}`}
+                      >
+                        {lesson.status.replace("_", " ")}
+                      </span>
+                    ) : null}
                   </div>
                 </li>
               );
