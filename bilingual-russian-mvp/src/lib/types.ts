@@ -17,6 +17,20 @@ export type SkillLevel =
   | "consolidating"
   | "confident";
 
+export type LessonStatus =
+  | "upcoming"
+  | "live"
+  | "completed"
+  | "cancelled"
+  | "no_show"
+  | "rescheduled";
+
+export type PackagePaymentStatus = "paid" | "due" | "overdue";
+
+export type EarningsStatus = "pending" | "approved" | "paid";
+
+export type AppRole = "teacher" | "parent" | "admin";
+
 export interface Child {
   id: string;
   name: string;
@@ -30,7 +44,52 @@ export interface Child {
   strengths: string[];
   attentionAreas: string[];
   progressHighlights: string[];
+  teacherId: string;
+  timezone: string;
   isDemoFocus?: boolean;
+}
+
+export interface Teacher {
+  id: string;
+  name: string;
+  timezone: string;
+  ratePerLesson: number;
+  earningsStatus: EarningsStatus;
+}
+
+export interface ZoomMeeting {
+  url: string;
+  meetingId?: string;
+  passcode?: string;
+}
+
+export interface ScheduledLesson {
+  id: string;
+  childId: string;
+  teacherId: string;
+  /** UTC ISO datetime */
+  startsAt: string;
+  durationMin: number;
+  status: LessonStatus;
+  topic: string;
+  zoom: ZoomMeeting;
+  seriesId?: string;
+  eligible: boolean;
+  notes?: string;
+}
+
+export interface LessonPackage {
+  id: string;
+  childId: string;
+  purchasedAt: string;
+  priceUsd: number;
+  lessonsPurchased: number;
+  lessonsCompleted: number;
+  lessonsCancelled: number;
+  lessonsNoShow: number;
+  lessonsRescheduled: number;
+  paymentStatus: PackagePaymentStatus;
+  nextPaymentDue?: string;
 }
 
 export interface LanguageSkill {
@@ -61,6 +120,7 @@ export interface LessonActivity {
   observe: string;
   prompts: string[];
   targetIds: string[];
+  kind?: "warmup" | "vocab" | "movement" | "speaking" | "game" | "review";
 }
 
 export interface LessonTemplate {
@@ -106,6 +166,7 @@ export interface CompletedLesson {
     prompts: string[];
   };
   observations: Observation[];
+  scheduledLessonId?: string;
 }
 
 export interface MonthlySummary {
@@ -124,12 +185,17 @@ export interface ProgressSnapshot {
 }
 
 export interface AppState {
+  role: AppRole;
+  teachers: Teacher[];
   children: Child[];
   lessonsByChild: Record<string, CompletedLesson[]>;
   progressByChild: Record<string, ProgressSnapshot>;
+  schedule: ScheduledLesson[];
+  packages: LessonPackage[];
   activeLesson?: {
     childId: string;
     templateId: string;
+    scheduledLessonId?: string;
     startedAt: string;
     currentActivityIndex: number;
     results: Record<string, ObservationResult>;

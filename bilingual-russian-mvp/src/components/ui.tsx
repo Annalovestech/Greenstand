@@ -13,18 +13,18 @@ export function PageTitle({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between fade-up">
+    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between fade-up">
       <div>
         {eyebrow ? (
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--teal)]">
+          <p className="mb-1 text-[13px] font-medium text-[var(--muted)]">
             {eyebrow}
           </p>
         ) : null}
-        <h1 className="font-display text-3xl leading-tight text-[var(--ink)] sm:text-4xl">
+        <h1 className="font-display text-[1.85rem] leading-[1.15] tracking-tight text-[var(--ink)] sm:text-[2.15rem]">
           {title}
         </h1>
         {subtitle ? (
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-[var(--ink-soft)]">
+          <p className="mt-2 max-w-md text-[15px] leading-relaxed text-[var(--ink-soft)]">
             {subtitle}
           </p>
         ) : null}
@@ -38,7 +38,7 @@ export function BackLink({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-[var(--teal)] transition hover:opacity-80"
+      className="mb-5 inline-flex items-center gap-1 text-[15px] font-medium text-[var(--teal)] transition hover:opacity-70"
     >
       <span aria-hidden>←</span> {label}
     </Link>
@@ -50,13 +50,69 @@ export function PrimaryButton({
   onClick,
   children,
   className = "",
+  type = "button",
+}: {
+  href?: string;
+  onClick?: () => void;
+  children: ReactNode;
+  className?: string;
+  type?: "button" | "submit";
+}) {
+  const classes = `inline-flex items-center justify-center rounded-[14px] bg-[var(--teal)] px-5 py-3.5 text-[15px] font-semibold text-white transition hover:bg-[var(--teal-deep)] active:scale-[0.98] ${className}`;
+  if (href) {
+    return (
+      <Link href={href} className={classes} onClick={onClick}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <button type={type} onClick={onClick} className={classes}>
+      {children}
+    </button>
+  );
+}
+
+export function SecondaryButton({
+  href,
+  onClick,
+  children,
+  className = "",
+  type = "button",
+}: {
+  href?: string;
+  onClick?: () => void;
+  children: ReactNode;
+  className?: string;
+  type?: "button" | "submit";
+}) {
+  const classes = `inline-flex items-center justify-center rounded-[14px] bg-transparent px-4 py-3 text-[15px] font-semibold text-[var(--teal)] transition hover:bg-[var(--teal-soft)]/60 active:scale-[0.98] ${className}`;
+  if (href) {
+    return (
+      <Link href={href} className={classes} onClick={onClick}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <button type={type} onClick={onClick} className={classes}>
+      {children}
+    </button>
+  );
+}
+
+export function QuietButton({
+  href,
+  onClick,
+  children,
+  className = "",
 }: {
   href?: string;
   onClick?: () => void;
   children: ReactNode;
   className?: string;
 }) {
-  const classes = `inline-flex items-center justify-center rounded-2xl bg-[var(--teal)] px-4 py-3 text-sm font-semibold text-white shadow-[var(--shadow)] transition hover:bg-[var(--teal-deep)] active:scale-[0.98] ${className}`;
+  const classes = `inline-flex items-center justify-center text-[13px] font-medium text-[var(--muted)] transition hover:text-[var(--ink-soft)] ${className}`;
   if (href) {
     return (
       <Link href={href} className={classes} onClick={onClick}>
@@ -71,29 +127,35 @@ export function PrimaryButton({
   );
 }
 
-export function SecondaryButton({
-  href,
-  onClick,
-  children,
-  className = "",
+export function SegmentedControl({
+  options,
+  value,
+  onChange,
 }: {
-  href?: string;
-  onClick?: () => void;
-  children: ReactNode;
-  className?: string;
+  options: { id: string; label: string }[];
+  value: string;
+  onChange: (id: string) => void;
 }) {
-  const classes = `inline-flex items-center justify-center rounded-2xl border border-[var(--line)] bg-white/80 px-4 py-3 text-sm font-semibold text-[var(--ink)] transition hover:bg-white active:scale-[0.98] ${className}`;
-  if (href) {
-    return (
-      <Link href={href} className={classes} onClick={onClick}>
-        {children}
-      </Link>
-    );
-  }
   return (
-    <button type="button" onClick={onClick} className={classes}>
-      {children}
-    </button>
+    <div className="inline-flex rounded-full bg-[rgba(120,120,128,0.12)] p-0.5">
+      {options.map((opt) => {
+        const active = opt.id === value;
+        return (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => onChange(opt.id)}
+            className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition ${
+              active
+                ? "bg-white text-[var(--ink)] shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+                : "text-[var(--muted)]"
+            }`}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -122,7 +184,11 @@ export function LevelPill({ level }: { level: string }) {
   );
 }
 
-export function MiniTrend({ trend }: { trend: "improving" | "stable" | "needs_attention" | string }) {
+export function MiniTrend({
+  trend,
+}: {
+  trend: "improving" | "stable" | "needs_attention" | string;
+}) {
   const stroke =
     trend === "improving"
       ? "var(--good)"
@@ -136,7 +202,13 @@ export function MiniTrend({ trend }: { trend: "improving" | "stable" | "needs_at
         ? "2,5 8,8 14,7 22,14"
         : "2,10 8,9 14,11 22,10";
   return (
-    <svg width="28" height="18" viewBox="0 0 24 18" aria-hidden className="shrink-0">
+    <svg
+      width="28"
+      height="18"
+      viewBox="0 0 24 18"
+      aria-hidden
+      className="shrink-0"
+    >
       <polyline
         fill="none"
         stroke={stroke}
@@ -151,8 +223,22 @@ export function MiniTrend({ trend }: { trend: "improving" | "stable" | "needs_at
 
 export function LoadingScreen() {
   return (
-    <div className="surface flex min-h-[40vh] items-center justify-center p-8 text-sm text-[var(--muted)]">
-      Loading demo…
+    <div className="flex min-h-[40vh] items-center justify-center p-8 text-[15px] text-[var(--muted)]">
+      Loading…
     </div>
   );
+}
+
+export function StatusDot({ status }: { status: string }) {
+  const color =
+    status === "live"
+      ? "bg-[var(--good)]"
+      : status === "upcoming"
+        ? "bg-[var(--teal)]"
+        : status === "completed"
+          ? "bg-[var(--muted)]"
+          : status === "cancelled" || status === "no_show"
+            ? "bg-[var(--attention)]"
+            : "bg-[var(--amber)]";
+  return <span className={`inline-block h-1.5 w-1.5 rounded-full ${color}`} />;
 }

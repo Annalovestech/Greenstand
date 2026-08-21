@@ -1,7 +1,17 @@
 import { createInitialState } from "./data";
 import type { AppState } from "./types";
 
-const STORAGE_KEY = "lado-bilingual-mvp-v1";
+const STORAGE_KEY = "lado-bilingual-mvp-v2";
+
+function isValidState(parsed: AppState): boolean {
+  return Boolean(
+    parsed.children?.length &&
+      parsed.progressByChild &&
+      parsed.schedule &&
+      parsed.packages &&
+      parsed.teachers?.length
+  );
+}
 
 export function loadState(): AppState {
   if (typeof window === "undefined") {
@@ -11,9 +21,7 @@ export function loadState(): AppState {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return createInitialState();
     const parsed = JSON.parse(raw) as AppState;
-    if (!parsed.children?.length || !parsed.progressByChild) {
-      return createInitialState();
-    }
+    if (!isValidState(parsed)) return createInitialState();
     return parsed;
   } catch {
     return createInitialState();

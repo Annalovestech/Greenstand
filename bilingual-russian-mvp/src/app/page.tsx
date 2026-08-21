@@ -1,138 +1,262 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useApp } from "@/lib/app-context";
+import { LEARNER_TZ, TEACHER_TZ } from "@/lib/data";
+import { CalendarAgenda } from "@/components/CalendarAgenda";
 import {
   LoadingScreen,
-  MiniTrend,
   PageTitle,
-  PrimaryButton,
+  QuietButton,
+  SegmentedControl,
 } from "@/components/ui";
+import { isWithinNextDays, localDayKey, packageRemaining } from "@/lib/time";
 
 export default function DashboardPage() {
-  const { ready, state } = useApp();
+  const {
+    ready,
+    state,
+    startLesson,
+    updateLessonStatus,
+    getTeacher,
+    getPackage,
+  } = useApp();
+  const [range, setRange] = useState<"today" | "week">("today");
+
+  const teacher = getTeacher();
+  const viewerTz =
+    state.role === "teacher"
+      ? teacher?.timezone ?? TEACHER_TZ
+      : LEARNER_TZ;
+
+  const childrenById = useMemo(
+    () => Object.fromEntries(state.children.map((c) => [c.id, c])),
+    [state.children]
+  );
+
+  const filtered = useMemo(() => {
+    const now = new Date();
+    // Anchor demo “today” to seeded Aug 21, 2026 when running near that seed.
+    const seedToday = new Date("2026-08-21T12:00:00Z");
+    const anchor =
+      Math.abs(now.getTime() - seedToday.getTime()) < 120 * 24 * 60 * 60 * 1000
+        ? seedToday
+        : now;
+
+    return state.schedule.filter((lesson) => {
+      if (range === "today") {
+        return (
+          localDayKey(lesson.startsAt, LEARNER_TZ) ===
+          localDayKey(anchor.toISOString(), LEARNER_TZ)
+        );
+      }
+      return isWithinNextDays(lesson.startsAt, 7, anchor);
+    });
+  }, [state.schedule, range]);
+
+  const earnings = useMemo(() => {
+    const completed = state.schedule.filter((s) => s.status === "completed")
+      .length;
+    // Count completed from packages this month as demo earnings base
+    const monthCompleted = state.packages.reduce(
+      (sum, p) => sum + p.lessonsCompleted,
+      0
+    );
+    const rate = teacher?.ratePerLesson ?? 15;
+    return {
+      completed: monthCompleted + completed,
+      rate,
+      due: (monthCompleted + completed) * rate,
+      status: teacher?.earningsStatus ?? "pending",
+    };
+  }, [state.schedule, state.packages, teacher]);
 
   if (!ready) return <LoadingScreen />;
 
-  const focus = state.children.find((c) => c.isDemoFocus) ?? state.children[0];
+  if (state.role === "admin") {
+    return <AdminHome />;
+  }
+
+  if (state.role === "parent") {
+    return <ParentHome />;
+  }
 
   return (
     <div>
       <PageTitle
-        eyebrow="Teacher dashboard"
-        title="Today’s learners"
-        subtitle="Three bilingual preschoolers. Start with Lana — the main demo path is highlighted."
+        title="Today"
+        subtitle={`${teacher?.name ?? "Teacher"} · times in ${viewerTz === TEACHER_TZ ? "your local time" : "learner time"}`}
+        action={
+          <SegmentedControl
+            value={range}
+            onChange={(id) => setRange(id as "today" | "week")}
+            options={[
+              { id: "today", label: "Today" },
+              { id: "week", label: "Week" },
+            ]}
+          />
+        }
       />
 
-      <section className="surface mb-5 overflow-hidden p-4 sm:p-5 fade-up fade-up-delay-1">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--amber)]">
-              Suggested demo path
-            </p>
-            <h2 className="font-display mt-1 text-2xl text-[var(--ink)]">
-              Open Lana → Progress → Start lesson
-            </h2>
-            <p className="mt-1 max-w-lg text-sm text-[var(--ink-soft)]">
-              Mark targets with taps, end the lesson, then see the parent summary
-              and updated progress.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:items-end">
-            <PrimaryButton href={`/child/${focus.id}`} className="pulse-soft w-full sm:w-auto">
-              Open Lana’s profile
-            </PrimaryButton>
-            <PrimaryButton
-              href={`/child/${focus.id}/lesson`}
-              className="w-full bg-[var(--teal-deep)] sm:w-auto"
-            >
-              Start 20-min lesson
-            </PrimaryButton>
-          </div>
+      <CalendarAgenda
+        lessons={filtered}
+        childrenById={childrenById}
+        teacher={teacher}
+        role="teacher"
+        viewerTimezone={LEARNER_TZ}
+        onStart={(lesson) => startLesson(lesson.childId, lesson.id)}
+        onStatus={(id, status) => updateLessonStatus(id, status)}
+      />
+
+      <section className="section-gap fade-up fade-up-delay-1">
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="text-[13px] font-semibold text-[var(--muted)]">
+            Learners
+          </h2>
+          <QuietButton href="/admin">Admin</QuietButton>
         </div>
-      </section>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        {state.children.map((child, index) => {
-          const lessons = state.lessonsByChild[child.id] ?? [];
-          const recent = lessons[0];
-          const skills = state.progressByChild[child.id]?.skills ?? [];
-          const improving = skills.filter((s) => s.trend === "improving").length;
-          const attention = skills.filter((s) => s.trend === "needs_attention").length;
-          const overallTrend =
-            attention > improving
-              ? "needs_attention"
-              : improving > 0
-                ? "improving"
-                : "stable";
-
-          return (
-            <Link
-              key={child.id}
-              href={`/child/${child.id}`}
-              className={`surface block p-4 transition hover:-translate-y-0.5 hover:bg-white/90 fade-up ${
-                child.isDemoFocus ? "ring-2 ring-[var(--teal)]/35" : ""
-              }`}
-              style={{ animationDelay: `${0.08 + index * 0.06}s` }}
-            >
-              <div className="mb-3 flex items-start justify-between gap-2">
-                <div className="flex items-center gap-3">
+        <ul className="divide-y divide-[var(--line)]">
+          {state.children.map((child) => {
+            const pkg = getPackage(child.id);
+            return (
+              <li key={child.id}>
+                <Link
+                  href={`/child/${child.id}`}
+                  className="flex items-center gap-3 py-3.5 transition active:opacity-70"
+                >
                   <span
-                    className="flex h-11 w-11 items-center justify-center rounded-2xl text-lg font-semibold text-white"
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-[15px] font-semibold text-white"
                     style={{ background: child.avatarColor }}
                   >
                     {child.name.slice(0, 1)}
                   </span>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-display text-xl">{child.name}</h3>
-                      {child.isDemoFocus ? (
-                        <span className="rounded-full bg-[var(--teal-soft)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--teal-deep)]">
-                          Demo
-                        </span>
-                      ) : null}
-                    </div>
-                    <p className="text-xs text-[var(--muted)]">
-                      Age {child.age} · {child.dominantLanguage}-dominant
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[15px] font-semibold">{child.name}</p>
+                    <p className="truncate text-[13px] text-[var(--muted)]">
+                      {child.russianLevel}
+                      {pkg
+                        ? ` · ${packageRemaining(pkg)} lessons left`
+                        : null}
                     </p>
                   </div>
-                </div>
-                <MiniTrend trend={overallTrend} />
-              </div>
+                  <span className="text-[13px] text-[var(--teal)]">Open</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
-              <dl className="space-y-2 text-sm">
-                <div className="flex justify-between gap-3">
-                  <dt className="text-[var(--muted)]">Russian level</dt>
-                  <dd className="text-right font-medium">{child.russianLevel}</dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-[var(--muted)]">Frequency</dt>
-                  <dd className="text-right font-medium">{child.lessonFrequency}</dd>
-                </div>
-                <div className="flex justify-between gap-3">
-                  <dt className="text-[var(--muted)]">Recent lesson</dt>
-                  <dd className="text-right font-medium">
-                    {recent ? recent.topic : "—"}
-                  </dd>
-                </div>
-              </dl>
+      <section className="section-gap fade-up fade-up-delay-2">
+        <h2 className="mb-2 text-[13px] font-semibold text-[var(--muted)]">
+          Earnings
+        </h2>
+        <p className="text-[15px] text-[var(--ink-soft)]">
+          Completed this month:{" "}
+          <span className="font-semibold text-[var(--ink)]">
+            {earnings.completed}
+          </span>
+        </p>
+        <p className="mt-1 text-[15px] text-[var(--ink-soft)]">
+          Rate: ${earnings.rate} / lesson · Amount due:{" "}
+          <span className="font-semibold text-[var(--ink)]">
+            ${earnings.due}
+          </span>
+        </p>
+        <p className="mt-1 text-[13px] capitalize text-[var(--muted)]">
+          {earnings.status}
+        </p>
+      </section>
+    </div>
+  );
+}
 
-              <div className="mt-3 rounded-xl bg-[var(--sand)]/60 px-3 py-2">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-                  Current goal
-                </p>
-                <p className="mt-0.5 text-sm leading-snug text-[var(--ink)]">
-                  {child.currentGoal}
-                </p>
-              </div>
+function ParentHome() {
+  const { state, getTeacher, getPackage, updateLessonStatus } = useApp();
+  const [range, setRange] = useState<"today" | "week">("week");
+  const teacher = getTeacher();
+  const childrenById = Object.fromEntries(
+    state.children.map((c) => [c.id, c])
+  );
+  const focus = state.children.find((c) => c.isDemoFocus) ?? state.children[0];
+  const pkg = getPackage(focus.id);
 
-              <p className="mt-3 text-xs text-[var(--ink-soft)]">
-                Trend: {improving} improving · {attention} need attention
-              </p>
-            </Link>
-          );
-        })}
-      </div>
+  const lessons = state.schedule.filter((l) => l.childId === focus.id);
+  const visible =
+    range === "today"
+      ? lessons.filter(
+          (l) =>
+            localDayKey(l.startsAt, LEARNER_TZ) ===
+            localDayKey("2026-08-21T12:00:00Z", LEARNER_TZ)
+        )
+      : lessons.filter((l) =>
+          isWithinNextDays(l.startsAt, 14, new Date("2026-08-21T12:00:00Z"))
+        );
+
+  return (
+    <div>
+      <PageTitle
+        title={focus.name}
+        subtitle="Upcoming lessons"
+        action={
+          <SegmentedControl
+            value={range}
+            onChange={(id) => setRange(id as "today" | "week")}
+            options={[
+              { id: "today", label: "Today" },
+              { id: "week", label: "Week" },
+            ]}
+          />
+        }
+      />
+
+      {pkg ? (
+        <p className="mb-6 text-[15px] text-[var(--ink-soft)]">
+          <span className="font-semibold text-[var(--ink)]">
+            {pkg.lessonsPurchased}
+          </span>{" "}
+          purchased ·{" "}
+          <span className="font-semibold text-[var(--ink)]">
+            {pkg.lessonsCompleted}
+          </span>{" "}
+          completed ·{" "}
+          <span className="font-semibold text-[var(--ink)]">
+            {packageRemaining(pkg)}
+          </span>{" "}
+          remaining
+        </p>
+      ) : null}
+
+      <CalendarAgenda
+        lessons={visible}
+        childrenById={childrenById}
+        teacher={teacher}
+        role="parent"
+        viewerTimezone={LEARNER_TZ}
+        onStatus={(id, status) => updateLessonStatus(id, status)}
+      />
+    </div>
+  );
+}
+
+function AdminHome() {
+  return (
+    <div>
+      <PageTitle
+        title="Admin"
+        subtitle="Learners, calendar, and billing — compact operations."
+        action={<QuietButton href="/admin">Open workspace</QuietButton>}
+      />
+      <p className="text-[15px] text-[var(--ink-soft)]">
+        Use the Admin workspace for packages, scheduling, and teacher earnings.
+      </p>
+      <Link
+        href="/admin"
+        className="mt-4 inline-flex text-[15px] font-semibold text-[var(--teal)]"
+      >
+        Go to admin →
+      </Link>
     </div>
   );
 }
