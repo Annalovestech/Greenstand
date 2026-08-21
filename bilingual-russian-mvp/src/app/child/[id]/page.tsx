@@ -5,7 +5,6 @@ import { useApp } from "@/lib/app-context";
 import {
   BackLink,
   LoadingScreen,
-  PageTitle,
   PrimaryButton,
   SecondaryButton,
 } from "@/components/ui";
@@ -31,161 +30,181 @@ export default function ChildProfilePage({
   }
 
   const lessons = state.lessonsByChild[id] ?? [];
+  const workingOn = child.attentionAreas[0] ?? child.currentGoal;
+  const doingWell = child.strengths[0];
+  const recentWin = child.progressHighlights[0];
 
   return (
     <div>
       <BackLink href="/" label="All learners" />
-      <PageTitle
-        eyebrow="Child profile"
-        title={child.name}
-        subtitle={`${child.bilingualEnvironment}`}
-        action={
-          child.isDemoFocus ? (
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-              <SecondaryButton href={`/child/${id}/progress`}>
-                View progress
-              </SecondaryButton>
-              <PrimaryButton
-                href={`/child/${id}/lesson`}
-                onClick={() => startLesson(id)}
-              >
-                Start lesson
-              </PrimaryButton>
-            </div>
-          ) : (
-            <SecondaryButton href={`/child/${id}/progress`}>
-              View progress
-            </SecondaryButton>
-          )
-        }
-      />
 
-      {child.isDemoFocus ? (
-        <div className="mb-4 rounded-2xl border border-dashed border-[var(--teal)]/40 bg-[var(--teal-soft)]/50 px-4 py-3 text-sm text-[var(--teal-deep)] fade-up">
-          <strong>Demo flow:</strong> View Progress → Start Lesson → mark targets →
-          End Lesson → parent summary.
+      <section className="surface p-4 sm:p-5 fade-up">
+        <div className="flex items-center gap-3">
+          <span
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl text-xl font-semibold text-white"
+            style={{ background: child.avatarColor }}
+          >
+            {child.name.slice(0, 1)}
+          </span>
+          <div className="min-w-0">
+            <h1 className="font-display text-2xl leading-tight sm:text-3xl">
+              {child.name}, {child.age}
+            </h1>
+            <p className="mt-0.5 text-sm text-[var(--muted)]">
+              {child.russianLevel}
+            </p>
+          </div>
         </div>
-      ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="surface p-4 sm:p-5 fade-up fade-up-delay-1">
-          <div className="mb-4 flex items-center gap-3">
-            <span
-              className="flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-semibold text-white"
-              style={{ background: child.avatarColor }}
-            >
-              {child.name.slice(0, 1)}
-            </span>
-            <div>
-              <p className="font-display text-2xl">{child.name}, {child.age}</p>
-              <p className="text-sm text-[var(--muted)]">{child.russianLevel}</p>
-            </div>
-          </div>
+        <dl className="mt-4 space-y-2.5 border-t border-[var(--line)] pt-4">
+          <MetaRow label="Lesson frequency" value={child.lessonFrequency} />
+          <MetaRow label="Learning goal" value={child.currentGoal} />
+        </dl>
 
-          <dl className="grid gap-3 sm:grid-cols-2">
-            <Info label="Dominant language" value={child.dominantLanguage} />
-            <Info label="Lesson frequency" value={child.lessonFrequency} />
-            <Info label="Current Russian level" value={child.russianLevel} />
-            <Info label="Current learning goal" value={child.currentGoal} />
-          </dl>
-        </section>
+        <div className="mt-4 flex flex-col gap-2">
+          <PrimaryButton
+            href={`/child/${id}/lesson`}
+            onClick={() => startLesson(id)}
+            className="w-full"
+          >
+            Start lesson
+          </PrimaryButton>
+          <SecondaryButton
+            href={`/child/${id}/progress`}
+            className="w-full"
+          >
+            View progress
+          </SecondaryButton>
+        </div>
+      </section>
 
-        <section className="surface p-4 sm:p-5 fade-up fade-up-delay-2">
-          <h2 className="font-display text-xl">Current goals</h2>
-          <ul className="mt-3 space-y-2 text-sm text-[var(--ink-soft)]">
-            <li className="rounded-xl bg-[var(--sand)]/70 px-3 py-2">
-              {child.currentGoal}
-            </li>
-            {child.attentionAreas.slice(0, 2).map((item) => (
-              <li key={item} className="rounded-xl bg-white/70 px-3 py-2">
-                {item}
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <SecondaryButton href={`/child/${id}/history`} className="!py-2 text-xs">
-              Lesson history
-            </SecondaryButton>
-            <SecondaryButton href={`/child/${id}/progress`} className="!py-2 text-xs">
-              Full progress
-            </SecondaryButton>
-          </div>
-        </section>
-      </div>
+      <section className="surface mt-4 p-4 sm:p-5 fade-up fade-up-delay-1">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="font-display text-xl">Progress snapshot</h2>
+          <SecondaryButton
+            href={`/child/${id}/progress`}
+            className="!px-3 !py-1.5 text-xs"
+          >
+            Full progress
+          </SecondaryButton>
+        </div>
 
-      <div className="mt-4 grid gap-4 md:grid-cols-3">
-        <ListCard title="Strengths" items={child.strengths} />
-        <ListCard title="Needs attention" items={child.attentionAreas} tone="attention" />
-        <ListCard title="Recent progress highlights" items={child.progressHighlights} tone="good" />
-      </div>
+        <div className="space-y-3">
+          <SnapshotRow
+            label="Working on"
+            value={workingOn}
+            detail={
+              child.attentionAreas.length > 1
+                ? `+${child.attentionAreas.length - 1} more`
+                : undefined
+            }
+          />
+          <SnapshotRow
+            label="Doing well"
+            value={doingWell}
+            tone="good"
+            detail={
+              child.strengths.length > 1
+                ? `+${child.strengths.length - 1} more`
+                : undefined
+            }
+          />
+          <SnapshotRow
+            label="Recent win"
+            value={recentWin}
+            tone="teal"
+            detail={
+              child.progressHighlights.length > 1
+                ? `+${child.progressHighlights.length - 1} more`
+                : undefined
+            }
+          />
+        </div>
+      </section>
 
-      <section className="surface mt-4 p-4 sm:p-5 fade-up fade-up-delay-3">
+      <section className="surface mt-4 p-4 sm:p-5 fade-up fade-up-delay-2">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="font-display text-xl">Recent lessons</h2>
-          <SecondaryButton href={`/child/${id}/history`} className="!py-2 text-xs">
+          <SecondaryButton
+            href={`/child/${id}/history`}
+            className="!px-3 !py-1.5 text-xs"
+          >
             See all
           </SecondaryButton>
         </div>
         <div className="space-y-3">
-          {lessons.slice(0, 3).map((lesson) => (
+          {lessons.slice(0, 2).map((lesson) => (
             <div
               key={lesson.id}
-              className="rounded-xl border border-[var(--line)] bg-white/60 px-3 py-3"
+              className="border-t border-[var(--line)] pt-3 first:border-t-0 first:pt-0"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-semibold">{lesson.topic}</p>
-                <p className="text-xs text-[var(--muted)]">{formatDate(lesson.date)}</p>
+                <p className="text-xs text-[var(--muted)]">
+                  {formatDate(lesson.date)}
+                </p>
               </div>
-              <p className="mt-1 text-sm text-[var(--ink-soft)]">{lesson.objective}</p>
-              <p className="mt-2 text-xs text-[var(--teal-deep)]">
+              <p className="mt-1 text-sm text-[var(--ink-soft)]">
+                {lesson.objective}
+              </p>
+              <p className="mt-1.5 text-xs text-[var(--teal-deep)]">
                 Next: {lesson.nextTarget}
               </p>
             </div>
           ))}
+          {lessons.length === 0 ? (
+            <p className="text-sm text-[var(--muted)]">No lessons yet.</p>
+          ) : null}
         </div>
       </section>
     </div>
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function MetaRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-white/60 px-3 py-2.5">
+    <div>
       <dt className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
         {label}
       </dt>
-      <dd className="mt-1 text-sm leading-snug">{value}</dd>
+      <dd className="mt-0.5 text-sm leading-snug text-[var(--ink)]">{value}</dd>
     </div>
   );
 }
 
-function ListCard({
-  title,
-  items,
+function SnapshotRow({
+  label,
+  value,
   tone = "neutral",
+  detail,
 }: {
-  title: string;
-  items: string[];
-  tone?: "neutral" | "attention" | "good";
+  label: string;
+  value: string;
+  tone?: "neutral" | "good" | "teal";
+  detail?: string;
 }) {
-  const border =
-    tone === "attention"
-      ? "border-[var(--attention)]/20"
-      : tone === "good"
-        ? "border-[var(--good)]/20"
-        : "border-[var(--line)]";
+  const accent =
+    tone === "good"
+      ? "bg-[var(--good)]"
+      : tone === "teal"
+        ? "bg-[var(--teal)]"
+        : "bg-[var(--amber)]";
+
   return (
-    <section className={`surface p-4 ${border} fade-up`}>
-      <h2 className="font-display text-lg">{title}</h2>
-      <ul className="mt-3 space-y-2 text-sm text-[var(--ink-soft)]">
-        {items.map((item) => (
-          <li key={item} className="flex gap-2">
-            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--teal)]" />
-            <span>{item}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <div className="flex gap-3">
+      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${accent}`} />
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+          {label}
+        </p>
+        <p className="mt-0.5 text-sm leading-snug text-[var(--ink-soft)]">
+          {value}
+        </p>
+        {detail ? (
+          <p className="mt-0.5 text-xs text-[var(--muted)]">{detail}</p>
+        ) : null}
+      </div>
+    </div>
   );
 }
 

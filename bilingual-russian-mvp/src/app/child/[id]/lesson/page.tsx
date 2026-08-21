@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, use } from "react";
+import { useEffect, useMemo, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { DEMO_LESSON } from "@/lib/data";
 import { useApp } from "@/lib/app-context";
@@ -8,10 +8,10 @@ import type { ObservationResult } from "@/lib/types";
 import {
   BackLink,
   LoadingScreen,
-  PageTitle,
   PrimaryButton,
-  SecondaryButton,
 } from "@/components/ui";
+
+const LESSON_MINUTES = 20;
 
 const RESULT_OPTIONS: {
   value: ObservationResult;
@@ -44,10 +44,23 @@ export default function LessonPage({
   const active =
     state.activeLesson?.childId === id ? state.activeLesson : undefined;
 
+  const [zoomLive, setZoomLive] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(LESSON_MINUTES * 60);
+  const [usedPrompts, setUsedPrompts] = useState<Record<string, boolean>>({});
+  const [showAllTargets, setShowAllTargets] = useState(false);
+
   useEffect(() => {
     if (!ready) return;
     if (!active) startLesson(id);
   }, [ready, active, id, startLesson]);
+
+  useEffect(() => {
+    if (!zoomLive) return;
+    const timer = window.setInterval(() => {
+      setSecondsLeft((s) => Math.max(0, s - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [zoomLive]);
 
   const activityIndex = active?.currentActivityIndex ?? 0;
   const activity = DEMO_LESSON.activities[activityIndex];
@@ -63,11 +76,14 @@ export default function LessonPage({
   const markedCount = Object.keys(active?.results ?? {}).length;
   const totalTargets = DEMO_LESSON.targets.length;
 
-  if (!ready || !child) return <LoadingScreen />;
-
   const elapsedHint = DEMO_LESSON.activities
     .slice(0, activityIndex)
     .reduce((sum, a) => sum + a.durationMin, 0);
+
+  const remainingHint =
+    LESSON_MINUTES - elapsedHint - (activity?.durationMin ?? 0);
+
+  if (!ready || !child) return <LoadingScreen />;
 
   function handleEnd() {
     const completed = endLesson(id);
@@ -76,120 +92,151 @@ export default function LessonPage({
     }
   }
 
+  function togglePrompt(prompt: string) {
+    setUsedPrompts((prev) => ({ ...prev, [prompt]: !prev[prompt] }));
+  }
+
   return (
-    <div>
-      <BackLink href={`/child/${id}`} label={`Leave lesson · ${child.name}`} />
-      <PageTitle
-        eyebrow="20-minute live lesson"
-        title={DEMO_LESSON.topic}
-        subtitle={`${DEMO_LESSON.theme} · ${DEMO_LESSON.objective}`}
-      />
+    <div className="pb-2">
+      <BackLink href={`/child/${id}`} label={`Leave · ${child.name}`} />
 
-      <section className="surface mb-4 p-4 fade-up">
-        <div className="mb-2 flex items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-          <span>
-            Minute ~{elapsedHint}–{elapsedHint + (activity?.durationMin ?? 0)} of 20
-          </span>
-          <span>
-            Block {activityIndex + 1}/{totalActivities}
-          </span>
-        </div>
-        <div className="progress-bar">
-          <span style={{ width: `${progressPct}%` }} />
-        </div>
-        <p className="mt-2 text-sm text-[var(--ink-soft)]">
-          Targets marked: {markedCount}/{totalTargets} · Tap results as you go —
-          almost no typing.
-        </p>
-      </section>
-
-      <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
-        {DEMO_LESSON.activities.map((a, index) => {
-          const isCurrent = index === activityIndex;
-          const isDone = index < activityIndex;
-          return (
-            <button
-              key={a.id}
-              type="button"
-              onClick={() => setActivityIndex(index)}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition ${
-                isCurrent
-                  ? "bg-[var(--teal)] text-white"
-                  : isDone
-                    ? "bg-[var(--teal-soft)] text-[var(--teal-deep)]"
-                    : "bg-white/70 text-[var(--muted)]"
-              }`}
-            >
-              {a.name}
-            </button>
-          );
-        })}
-      </div>
-
-      {activity ? (
-        <section className="surface p-4 sm:p-5 fade-up fade-up-delay-1">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--teal)]">
-                {activity.durationMin} min block
-              </p>
-              <h2 className="font-display mt-1 text-2xl">{activity.name}</h2>
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
-            <Panel title="Activity instructions" body={activity.instructions} />
-            <Panel title="What to observe" body={activity.observe} tone="sand" />
-          </div>
-
-          <div className="mt-4">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-              Prompts to ask
+      {/* Focused lesson header — not a heavy card stack */}
+      <header className="fade-up">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h1 className="font-display text-2xl leading-tight text-[var(--ink)] sm:text-3xl">
+              {DEMO_LESSON.topic}
+            </h1>
+            <p className="mt-1 text-sm text-[var(--ink-soft)]">
+              {LESSON_MINUTES}-minute lesson · {DEMO_LESSON.theme}
             </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {activity.prompts.map((p) => (
-                <span
-                  key={p}
-                  className="rounded-xl bg-[var(--teal-soft)] px-3 py-1.5 text-sm text-[var(--teal-deep)]"
-                >
-                  {p}
-                </span>
-              ))}
+          </div>
+          {!zoomLive ? (
+            <PrimaryButton
+              onClick={() => {
+                setZoomLive(true);
+                setSecondsLeft(LESSON_MINUTES * 60);
+              }}
+              className="!px-3.5 !py-2.5 text-sm shrink-0"
+            >
+              Join Zoom
+            </PrimaryButton>
+          ) : null}
+        </div>
+
+        {zoomLive ? (
+          <p className="mt-2 text-sm font-medium text-[var(--teal-deep)]">
+            Zoom · Live · {formatClock(secondsLeft)} remaining
+          </p>
+        ) : null}
+
+        <div className="mt-3">
+          <div className="mb-1.5 flex items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+            <span>
+              {activityIndex + 1} of {totalActivities}
+            </span>
+            <span>
+              ~{Math.max(0, remainingHint)} min left · Block ~
+              {elapsedHint}–{elapsedHint + (activity?.durationMin ?? 0)}
+            </span>
+          </div>
+          <div className="progress-bar">
+            <span style={{ width: `${progressPct}%` }} />
+          </div>
+        </div>
+      </header>
+
+      {/* Step navigation replaces horizontal tabs */}
+      {activity ? (
+        <div className="mt-4 fade-up fade-up-delay-1">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setActivityIndex(Math.max(0, activityIndex - 1))}
+              disabled={activityIndex === 0}
+              className="rounded-xl border border-[var(--line)] bg-white/80 px-3 py-2.5 text-sm font-semibold text-[var(--ink)] transition enabled:active:scale-[0.98] disabled:opacity-35"
+              aria-label="Previous block"
+            >
+              Prev
+            </button>
+            <div className="min-w-0 text-center">
+              <p className="text-sm font-semibold text-[var(--ink)]">
+                {activityIndex + 1} of {totalActivities} · {activity.name}
+              </p>
+              <p className="text-xs text-[var(--muted)]">
+                {activity.durationMin} min
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setActivityIndex(
+                  Math.min(totalActivities - 1, activityIndex + 1)
+                )
+              }
+              disabled={activityIndex >= totalActivities - 1}
+              className="rounded-xl border border-[var(--line)] bg-white/80 px-3 py-2.5 text-sm font-semibold text-[var(--ink)] transition enabled:active:scale-[0.98] disabled:opacity-35"
+              aria-label="Next block"
+            >
+              Next
+            </button>
+          </div>
+
+          {/* Light activity content — Do / Watch for / Say */}
+          <div className="mt-4 space-y-4 border-t border-[var(--line)] pt-4">
+            <BlockCue label="Do" body={activity.instructions} />
+            <BlockCue
+              label="Watch for"
+              body={activity.observe}
+              accent="sand"
+            />
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
+                Say
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {activity.prompts.map((p) => {
+                  const used = usedPrompts[p];
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => togglePrompt(p)}
+                      className={`rounded-xl px-3 py-2 text-sm transition active:scale-[0.97] ${
+                        used
+                          ? "bg-[var(--teal)] text-white"
+                          : "bg-[var(--teal-soft)] text-[var(--teal-deep)]"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          <div className="mt-5">
-            <h3 className="font-display text-lg">Mark targets</h3>
-            <div className="mt-3 space-y-3">
+          {/* Mark targets — essential teacher action, lighter framing */}
+          <div className="mt-5 border-t border-[var(--line)] pt-4">
+            <div className="mb-3 flex items-baseline justify-between gap-2">
+              <h2 className="font-display text-lg">Mark targets</h2>
+              <p className="text-xs text-[var(--muted)]">
+                {markedCount}/{totalTargets} marked
+              </p>
+            </div>
+            <div className="space-y-4">
               {activityTargets.map((target) => {
                 const current = active?.results[target.id];
                 return (
-                  <div
-                    key={target.id}
-                    className="rounded-2xl border border-[var(--line)] bg-white/70 p-3"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-[var(--ink)]">
-                          {target.text}
-                        </p>
-                        <p className="mt-0.5 text-xs text-[var(--muted)]">
-                          {target.type === "phrase" ? "Phrase" : "Word"} ·{" "}
-                          {target.skill.replaceAll("_", " ")}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {target.prompts.map((p) => (
-                        <span
-                          key={p}
-                          className="rounded-full bg-[var(--sand)]/80 px-2 py-0.5 text-[11px] text-[var(--ink-soft)]"
-                        >
-                          {p}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="mt-3 grid grid-cols-3 gap-2">
+                  <div key={target.id}>
+                    <p className="font-semibold text-[var(--ink)]">
+                      {target.text}
+                    </p>
+                    <p className="mt-0.5 text-xs text-[var(--muted)]">
+                      {target.type === "phrase" ? "Phrase" : "Word"} ·{" "}
+                      {target.skill.replaceAll("_", " ")}
+                    </p>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
                       {RESULT_OPTIONS.map((opt) => {
                         const selected = current === opt.value;
                         return (
@@ -204,7 +251,7 @@ export default function LessonPage({
                                   : opt.value === "prompted"
                                     ? "bg-[var(--amber)] text-white"
                                     : "bg-[var(--attention)] text-white"
-                                : "bg-[var(--bg-top)] text-[var(--ink-soft)] hover:bg-white"
+                                : "bg-white/70 text-[var(--ink-soft)] ring-1 ring-[var(--line)]"
                             }`}
                           >
                             <span className="block text-xs font-bold sm:text-sm">
@@ -212,7 +259,9 @@ export default function LessonPage({
                             </span>
                             <span
                               className={`mt-0.5 block text-[10px] ${
-                                selected ? "text-white/80" : "text-[var(--muted)]"
+                                selected
+                                  ? "text-white/80"
+                                  : "text-[var(--muted)]"
                               }`}
                             >
                               {opt.hint}
@@ -224,81 +273,110 @@ export default function LessonPage({
                   </div>
                 );
               })}
+              {activityTargets.length === 0 ? (
+                <p className="text-sm text-[var(--muted)]">
+                  No targets for this block — move on when ready.
+                </p>
+              ) : null}
             </div>
           </div>
 
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-between">
-            <SecondaryButton
-              onClick={() => setActivityIndex(Math.max(0, activityIndex - 1))}
-              className={activityIndex === 0 ? "pointer-events-none opacity-40" : ""}
-            >
-              Previous block
-            </SecondaryButton>
+          <div className="mt-5 sticky bottom-3 z-10">
             {activityIndex < totalActivities - 1 ? (
-              <PrimaryButton onClick={() => setActivityIndex(activityIndex + 1)}>
-                Next block →
+              <PrimaryButton
+                onClick={() => setActivityIndex(activityIndex + 1)}
+                className="w-full shadow-[var(--shadow)]"
+              >
+                Next · {DEMO_LESSON.activities[activityIndex + 1]?.name}
               </PrimaryButton>
             ) : (
-              <PrimaryButton onClick={handleEnd} className="bg-[var(--teal-deep)]">
+              <PrimaryButton
+                onClick={handleEnd}
+                className="w-full bg-[var(--teal-deep)] shadow-[var(--shadow)]"
+              >
                 End lesson · generate summary
               </PrimaryButton>
             )}
           </div>
-        </section>
+        </div>
       ) : null}
 
-      <section className="surface mt-4 p-4 fade-up fade-up-delay-2">
-        <h3 className="font-display text-lg">All lesson targets</h3>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {DEMO_LESSON.targets.map((t) => {
-            const result = active?.results[t.id];
-            return (
-              <span
-                key={t.id}
-                className={`rounded-full px-3 py-1.5 text-sm ${
-                  result === "independent"
-                    ? "bg-[rgba(47,125,87,0.15)] text-[var(--good)]"
-                    : result === "prompted"
-                      ? "bg-[rgba(176,122,42,0.15)] text-[var(--warn)]"
-                      : result === "not_yet"
-                        ? "bg-[rgba(163,77,63,0.15)] text-[var(--attention)]"
-                        : "bg-white/80 text-[var(--muted)]"
-                }`}
-              >
-                {t.text}
-              </span>
-            );
-          })}
-        </div>
-        <div className="mt-4">
-          <PrimaryButton onClick={handleEnd} className="w-full sm:w-auto">
-            End lesson early & save observations
-          </PrimaryButton>
-        </div>
-      </section>
+      {/* Progressive disclosure for secondary overview */}
+      <div className="mt-6 border-t border-[var(--line)] pt-3 fade-up fade-up-delay-2">
+        <button
+          type="button"
+          onClick={() => setShowAllTargets((v) => !v)}
+          className="flex w-full items-center justify-between gap-2 text-left text-sm font-semibold text-[var(--ink-soft)]"
+        >
+          <span>All lesson targets</span>
+          <span className="text-xs font-medium text-[var(--muted)]">
+            {showAllTargets ? "Hide" : "Show"}
+          </span>
+        </button>
+        {showAllTargets ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {DEMO_LESSON.targets.map((t) => {
+              const result = active?.results[t.id];
+              return (
+                <span
+                  key={t.id}
+                  className={`rounded-full px-3 py-1.5 text-sm ${
+                    result === "independent"
+                      ? "bg-[rgba(47,125,87,0.15)] text-[var(--good)]"
+                      : result === "prompted"
+                        ? "bg-[rgba(176,122,42,0.15)] text-[var(--warn)]"
+                        : result === "not_yet"
+                          ? "bg-[rgba(163,77,63,0.15)] text-[var(--attention)]"
+                          : "bg-white/80 text-[var(--muted)]"
+                  }`}
+                >
+                  {t.text}
+                </span>
+              );
+            })}
+          </div>
+        ) : null}
+        <button
+          type="button"
+          onClick={handleEnd}
+          className="mt-3 text-sm font-medium text-[var(--muted)] underline-offset-2 hover:text-[var(--ink-soft)] hover:underline"
+        >
+          End lesson early & save observations
+        </button>
+      </div>
     </div>
   );
 }
 
-function Panel({
-  title,
+function BlockCue({
+  label,
   body,
-  tone = "white",
+  accent,
 }: {
-  title: string;
+  label: string;
   body: string;
-  tone?: "white" | "sand";
+  accent?: "sand";
 }) {
   return (
     <div
-      className={`rounded-xl px-3 py-3 ${
-        tone === "sand" ? "bg-[var(--sand)]/70" : "bg-white/70"
-      }`}
+      className={
+        accent === "sand"
+          ? "-mx-1 rounded-xl bg-[var(--sand)]/55 px-3 py-2.5"
+          : undefined
+      }
     >
       <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--muted)]">
-        {title}
+        {label}
       </p>
-      <p className="mt-1 text-sm leading-relaxed text-[var(--ink-soft)]">{body}</p>
+      <p className="mt-1 text-sm leading-relaxed text-[var(--ink-soft)]">
+        {body}
+      </p>
     </div>
   );
+}
+
+function formatClock(totalSeconds: number) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
 }
