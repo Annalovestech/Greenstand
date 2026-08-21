@@ -9,6 +9,7 @@ import {
   BackLink,
   LoadingScreen,
   PrimaryButton,
+  SecondaryButton,
 } from "@/components/ui";
 
 const LESSON_MINUTES = 20;
@@ -76,12 +77,9 @@ export default function LessonPage({
   const markedCount = Object.keys(active?.results ?? {}).length;
   const totalTargets = DEMO_LESSON.targets.length;
 
-  const elapsedHint = DEMO_LESSON.activities
-    .slice(0, activityIndex)
+  const remainingHint = DEMO_LESSON.activities
+    .slice(activityIndex)
     .reduce((sum, a) => sum + a.durationMin, 0);
-
-  const remainingHint =
-    LESSON_MINUTES - elapsedHint - (activity?.durationMin ?? 0);
 
   if (!ready || !child) return <LoadingScreen />;
 
@@ -102,44 +100,38 @@ export default function LessonPage({
 
       {/* Focused lesson header — not a heavy card stack */}
       <header className="fade-up">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
-            <h1 className="font-display text-2xl leading-tight text-[var(--ink)] sm:text-3xl">
-              {DEMO_LESSON.topic}
-            </h1>
-            <p className="mt-1 text-sm text-[var(--ink-soft)]">
-              {LESSON_MINUTES}-minute lesson · {DEMO_LESSON.theme}
+        <h1 className="font-display text-2xl leading-tight text-[var(--ink)] sm:text-3xl">
+          {DEMO_LESSON.topic}
+        </h1>
+        <p className="mt-1 text-sm text-[var(--ink-soft)]">
+          {LESSON_MINUTES}-minute lesson · {DEMO_LESSON.theme} · Block{" "}
+          {activityIndex + 1} of {totalActivities}
+        </p>
+
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-2">
+          {zoomLive ? (
+            <p className="text-sm font-semibold text-[var(--teal-deep)]">
+              Zoom · Live · {formatClock(secondsLeft)} remaining
             </p>
-          </div>
-          {!zoomLive ? (
-            <PrimaryButton
+          ) : (
+            <SecondaryButton
               onClick={() => {
                 setZoomLive(true);
                 setSecondsLeft(LESSON_MINUTES * 60);
               }}
-              className="!px-3.5 !py-2.5 text-sm shrink-0"
+              className="!px-3.5 !py-2 text-sm"
             >
               Join Zoom
-            </PrimaryButton>
+            </SecondaryButton>
+          )}
+          {!zoomLive ? (
+            <p className="text-xs font-medium text-[var(--muted)]">
+              ~{Math.max(0, remainingHint)} min left in plan
+            </p>
           ) : null}
         </div>
 
-        {zoomLive ? (
-          <p className="mt-2 text-sm font-medium text-[var(--teal-deep)]">
-            Zoom · Live · {formatClock(secondsLeft)} remaining
-          </p>
-        ) : null}
-
         <div className="mt-3">
-          <div className="mb-1.5 flex items-center justify-between gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
-            <span>
-              {activityIndex + 1} of {totalActivities}
-            </span>
-            <span>
-              ~{Math.max(0, remainingHint)} min left · Block ~
-              {elapsedHint}–{elapsedHint + (activity?.durationMin ?? 0)}
-            </span>
-          </div>
           <div className="progress-bar">
             <span style={{ width: `${progressPct}%` }} />
           </div>
